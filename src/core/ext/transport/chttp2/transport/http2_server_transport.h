@@ -248,7 +248,7 @@ class Http2ServerTransport final : public ServerTransport,
   Http2Status ProcessIncomingFrame(Http2UnknownFrame&& frame);
   Http2Status ProcessIncomingFrame(Http2EmptyFrame&& frame);
 
-  Http2Status ProcessMetadata(RefCountedPtr<Stream> stream);
+  Http2Status ProcessMetadata();
 
   GPR_ATTRIBUTE_ALWAYS_INLINE_FUNCTION Http2Status
   ProcessOneIncomingFrame(Http2Frame&& frame) {
@@ -310,6 +310,8 @@ class Http2ServerTransport final : public ServerTransport,
   // Returns a promise to fetch data from the CallInitiator and pass it further
   // down towards the endpoint.
   auto CallOutboundLoop(RefCountedPtr<Stream> stream);
+
+  auto HandleMetadataAndMessages(RefCountedPtr<Stream> stream);
 
   // TODO(akshitpatel) : [PH2][P0] : Delete when implementing write loop.
   auto WriteFromQueue();
@@ -446,10 +448,7 @@ class Http2ServerTransport final : public ServerTransport,
   absl::Status MaybeAddStreamToWritableStreamList(
       GRPC_UNUSED const RefCountedPtr<Stream> stream,
       GRPC_UNUSED const StreamDataQueue<
-          ClientMetadataHandle>::StreamWritabilityUpdate result) {
-    // TODO(akshitpatel) : [PH2][P0] : Implement this.
-    return absl::OkStatus();
-  }
+          ServerMetadataHandle>::StreamWritabilityUpdate result);
 
   // Returns the next stream id. If the next stream id is not available, it
   // returns std::nullopt. MUST be called from the transport party.
@@ -504,8 +503,8 @@ class Http2ServerTransport final : public ServerTransport,
   std::optional<RefCountedPtr<Stream>> MakeStream(
       CallInitiator&& call_initiator, const uint32_t stream_id);
 
-  absl::Status IncomingStream(ClientMetadataHandle&& metadata,
-                              const uint32_t stream_id);
+  Http2Status IncomingStream(ClientMetadataHandle&& metadata,
+                             uint32_t stream_id);
 
   // void BeginCloseStream(RefCountedPtr<Stream> stream,
   //                       std::optional<uint32_t> reset_stream_error_code,
