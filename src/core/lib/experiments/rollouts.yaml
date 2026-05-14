@@ -82,6 +82,10 @@
   default: false
 - name: memory_optimization_02
   default: false
+- name: memory_optimization_03
+  default: true
+- name: memory_optimization_04
+  default: true
 - name: message_size_refactoring
   default: false
 - name: metadata_outstanding_token_refactor
