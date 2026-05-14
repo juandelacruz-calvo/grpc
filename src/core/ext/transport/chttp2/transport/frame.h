@@ -270,6 +270,21 @@ void AppendGrpcHeaderToSliceBuffer(SliceBuffer& payload, uint32_t flags,
                                    uint32_t length);
 
 ///////////////////////////////////////////////////////////////////////////////
+// Frame limits
+
+constexpr uint16_t kMaxNoopDataFrames = 16384u;
+constexpr uint16_t kMaxNoopContinuationFrames = 128u;
+constexpr uint16_t kMaxUnsolicitedSettingsAcks = 128u;
+
+struct Http2FrameCountTracker {
+  void OnEndHeaders() { noop_continuation_frames = 0u; }
+
+  uint16_t noop_continuation_frames = 0u;
+  uint16_t noop_data_frames = 0u;
+  uint16_t num_unsolicited_settings_acks = 0u;
+};
+
+///////////////////////////////////////////////////////////////////////////////
 // Validations
 
 http2::Http2Status ValidateSettingsValues(
@@ -280,7 +295,8 @@ http2::Http2Status ValidateFrameHeader(uint32_t max_frame_size_setting,
                                        uint32_t incoming_header_stream_id,
                                        Http2FrameHeader& current_frame_header,
                                        uint32_t last_stream_id, bool is_client,
-                                       bool is_first_settings_processed);
+                                       bool is_first_settings_processed,
+                                       Http2FrameCountTracker& tracker);
 
 ///////////////////////////////////////////////////////////////////////////////
 // RFC9113 Related Strings and Consts
@@ -406,6 +422,14 @@ inline constexpr absl::string_view kTooManyMetadata =
 inline constexpr absl::string_view kOutOfOrderDataFrame =
     "gRPC Error : DATA frames must follow initial metadata and precede "
     "trailing metadata.";
+inline constexpr absl::string_view kTooManyZeroLengthContinuationFrames =
+    "Too many zero length continuation frames without end_headers flag set";
+inline constexpr absl::string_view kTooManyZeroLengthDataFrames =
+    "Too many zero length data frames";
+inline constexpr absl::string_view kTooManySettingsFrames =
+    "Too many settings frames";
+inline constexpr absl::string_view kTooManyUnsolicitedSettingsAcks =
+    "Too many unsolicited settings acks";
 }  // namespace GrpcErrors
 
 }  // namespace grpc_core

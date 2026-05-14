@@ -493,8 +493,15 @@ Http2Status Http2ServerTransport::ProcessIncomingFrame(
                              /*stream=*/nullptr);
     } else {
       // CHTTP2 returns a connection error for an unsolicited SETTINGS ACK.
-      // However, we ignore it in PH2 since RFC 9113 doesn't explicitly mandate
-      // an error.
+      // PH2 gives some grace.
+      incoming_headers_.mutable_tracker().num_unsolicited_settings_acks++;
+      if (GPR_UNLIKELY(
+              incoming_headers_.tracker().num_unsolicited_settings_acks >=
+              kMaxUnsolicitedSettingsAcks)) {
+        return Http2Status::Http2ConnectionError(
+            Http2ErrorCode::kInternalError,
+            std::string(GrpcErrors::kTooManyUnsolicitedSettingsAcks));
+      }
       LOG(ERROR) << "Settings ack received without sending settings. Ignore.";
     }
   }
@@ -758,7 +765,8 @@ auto Http2ServerTransport::ReadAndProcessOneFrame() {
             // TODO(tjagtap) : [PH2][P0] : Fix
             /*last_stream_id=*//*GetLastStreamId()*/ 100,
             /*is_client=*/kIsClient, /*is_first_settings_processed=*/
-            settings_->IsFirstPeerSettingsApplied());
+            settings_->IsFirstPeerSettingsApplied(),
+            /*tracker=*/incoming_headers_.mutable_tracker());
 
         if (GPR_UNLIKELY(!status.IsOk())) {
           GRPC_DCHECK(status.GetType() ==
